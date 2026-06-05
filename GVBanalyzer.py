@@ -1,62 +1,94 @@
 import numpy as np
 import skimage as sk
 from matplotlib import pyplot as plt
+from oic_toolkit import display, register
 from scipy.ndimage import shift as ndimage_shift
 
+# def register_images(target, moving):
 
-def register_images(target, moving):
+#     h0, w0 = target.shape
+#     hm, wm = moving.shape
 
-    h0, w0 = target.shape
-    hm, wm = moving.shape
+#     # Match the moving to the target shape
+#     moving_final = np.zeros_like(target)
 
-    # Match the moving to the target shape
-    moving_final = np.zeros_like(target)
+#     # Determine the overlapping bounds
+#     slice_y = min(h0, hm)
+#     slice_x = min(w0, wm)
 
-    # Determine the overlapping bounds
-    slice_y = min(h0, hm)
-    slice_x = min(w0, wm)
+#     moving_final[:slice_y, :slice_x] = moving[:slice_y, :slice_x]
 
-    moving_final[:slice_y, :slice_x] = moving[:slice_y, :slice_x]
-
-    plot_merged_images(target, moving_final)
-
-    # Run the cross-correlation to register the images
-    shift, error, diffphase = sk.registration.phase_cross_correlation(
-        target, 
-        moving_final, 
-        disambiguate=True
-    )
+#     # Run the cross-correlation to register the images
+#     shift, error, diffphase = sk.registration.phase_cross_correlation(
+#         target, 
+#         moving_final, 
+#         disambiguate=True
+#     )
     
-    moving_corrected = ndimage_shift(
-        moving_final, 
-        shift=shift, 
-        cval=0.0
-    )
+#     moving_corrected = ndimage_shift(
+#         moving_final, 
+#         shift=shift, 
+#         cval=0.0
+#     )
 
-    plot_merged_images(target, moving_corrected)
+#     plot_merged_images(target, moving_corrected)
     
 
-def plot_merged_images(target, moving):
+# def plot_merged_images(image1, image2):
 
-    merged = np.zeros((target.shape[0], target.shape[1], 3), dtype=np.uint8)
+#     image1 = sk.exposure.rescale_intensity(image1, out_range=(0.0, 1.0))
+#     image2 = sk.exposure.rescale_intensity(image2, out_range=(0.0, 1.0))
 
-    merged[..., 0] = target
-    merged[..., 1] = moving
-    merged[..., 2] = target
+#     merged = np.zeros((image1.shape[0], image1.shape[1], 3), dtype=np.uint8)
 
-    plt.imshow(merged)
-    plt.show()
+#     merged[..., 0] = sk.util.img_as_ubyte(image1)
+#     merged[..., 1] = sk.util.img_as_ubyte(image2)
+#     merged[..., 2] = sk.util.img_as_ubyte(image1)
+
+#     plt.imshow(merged)
+#     plt.show()
 
 
 I1 = sk.io.imread("../data/Dataset 1/round 001/AW GVB AM1c-s11 010426_A01_w2.tif")
 
 I2 = sk.io.imread("../data/Dataset 1/round 002/AM1c-s11-r002_A01_w2.tif")
 
-print(I1.shape)
-print(I1.dtype)
-print(I2.shape)
+results, corrected = register.register_phasexcorr(I1, I2)
+# overlay = display.merge_images(I1, corrected)
 
-register_images(I1, I2)
+# plt.imshow(overlay)
+# plt.show()
 
+src, dst = register.calculate_displacement_field(I1, corrected, search_window=200, grid_size=(20, 20))
 
+print(len(src))
+print(len(dst))
 
+grid_size = (200, 200)
+
+tform, full_src, full_dst = register.estimate_tform(src, dst, I1.shape, mesh_grid=grid_size)
+
+print("Warping")
+#corrected = sk.transform.warp(I2, tform, output_shape=I1.shape)
+corrected2 = register.fast_warp(corrected, I1.shape, full_src, full_dst, mesh_grid=grid_size)
+
+print("Done")
+
+overlay = display.merge_images(I1, corrected2)
+
+fig = plt.figure(figsize=(8, 3))
+ax1 = plt.subplot(1, 2, 1)
+ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
+
+ax1.imshow(overlay)
+ax1.set_axis_off()
+ax1.title("Fine registration")
+
+orov = display.merge_images(I1, corrected)
+ax2.imshow(orov)
+ax2.set_axis_off()
+ax2.title("Coarse registration")
+
+plt.show()
+
+# register.generate_quiver_plot(I1, full_src, full_dst)
