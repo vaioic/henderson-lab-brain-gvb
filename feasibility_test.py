@@ -2,7 +2,6 @@ import numpy as np
 import skimage as sk
 from matplotlib import pyplot as plt
 from oic_toolkit import display, register
-from scipy.ndimage import shift as ndimage_shift
 
 # Register the images
 # TOP LEFT HEIGHT WIDTH
