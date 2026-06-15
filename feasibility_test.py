@@ -1,7 +1,9 @@
 import numpy as np
 import skimage as sk
 from matplotlib import pyplot as plt
-from oic_toolkit import display, register
+from oic_toolkit import display, register, segment
+
+from core import core_funcs
 
 # Register the images
 # TOP LEFT HEIGHT WIDTH
@@ -19,7 +21,22 @@ I2 = I2[ROI2[1]:(ROI2[1] + ROI2[3]), ROI2[0]:(ROI2[0] + ROI2[2])]
 
 merge_originals = display.merge_images(I1, I2)
 
-results, corrected_I2 = register.register_phasexcorr(I1, I2)
+results, corrected_I2 = register.phasexcorr(I1, I2)
+
+
+# # Try using optical flow
+# u, v = register.optical_flow_tvl1(I1, corrected_I2)
+
+# corrected_I2_flow = register.correct_optical_flow(corrected_I2, u, v)
+
+# merge = display.merge_images(I1, corrected_I2_flow)
+
+# plt.imshow(merge)
+# plt.show()
+
+# exit()
+
+
 # merge_corrected = display.merge_images(I1, corrected_I2)
 
 # Crop the image to leave only the registered part
@@ -41,6 +58,8 @@ plt.title("Corrected (merged)")
 plt.show()
 plt.close()
 # exit()
+
+# TODO: Apply registration to the other channels
 
 # Load the other channels
 alpha_synuclein = sk.io.imread("../data/Dataset 1/round 001/AW GVB AM1c-s11 010426_A01_w1.tif")
@@ -72,15 +91,6 @@ SK1delta = SK1delta[ROI2[1]:(ROI2[1] + ROI2[3]), ROI2[0]:(ROI2[0] + ROI2[2])]
 SK1delta_corr = register.shift_image(SK1delta, results["shift"])
 SK1delta_corr = SK1delta_corr[crop_ROI[1]:(crop_ROI[1] + crop_ROI[3]), crop_ROI[0]:(crop_ROI[0] + crop_ROI[2])]
 
-# alpha_synuclein_disp = sk.exposure.rescale_intensity(alpha_synuclein, out_range=(0.0, 1.0))
-
-# merge_test = display.merge_images(alpha_synuclein, SK1delta_corr)
-
-# plt.imshow(merge_test)
-
-# plt.show()
-# plt.close()
-
 ## Find synuclein positive cells
 alpha_synuclein_disp = sk.exposure.rescale_intensity(alpha_synuclein, in_range=(0, 2500), out_range=(0.0, 1.0))
 
@@ -91,13 +101,14 @@ overlay = sk.segmentation.mark_boundaries(alpha_synuclein_disp, mask, mode="thic
 plt.imshow(overlay)
 plt.show()
 plt.title("Positive cells")
+plt.close()
 
 # Find spots in these cells
-diffGauss = sk.filters.gaussian(chmp2b, 5) - sk.filters.gaussian(chmp2b, 12)
+dog_image = segment.difference_of_gaussians(chmp2b, d_min=3, d_max=20)
 
-mask_spots = diffGauss > 0.001
-
+mask_spots = dog_image > 0.001
 mask_spots_filt = mask_spots & mask
+
 
 overlay = sk.segmentation.mark_boundaries(sk.exposure.equalize_hist(chmp2b), mask_spots_filt, mode="thick", color=(1.0, 0, 1.0))
 plt.imshow(overlay)
