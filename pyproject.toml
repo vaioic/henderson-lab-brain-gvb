@@ -6,10 +6,13 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "matplotlib>=3.11.0",
+    "natsort>=8.4.0",
     "numpy>=2.5.1",
     "oic-toolkit>=0.1.0",
+    "opencv-python>=5.0.0.93",
     "scikit-image>=0.26.0",
     "tifffile>=2026.6.1",
+    "tqdm>=4.68.4",
 ]
 
 [build-system]
