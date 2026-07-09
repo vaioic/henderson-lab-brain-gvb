@@ -8,7 +8,7 @@ dependencies = [
     "matplotlib>=3.11.0",
     "natsort>=8.4.0",
     "numpy>=2.5.1",
-    "oic-toolkit>=0.1.0",
+    "oic-toolkit",
     "opencv-python>=5.0.0.93",
     "scikit-image>=0.26.0",
     "tifffile>=2026.6.1",
@@ -22,3 +22,6 @@ build-backend = "uv_build"
 [tool.uv.build-backend]
 module-name = "shared"
 module-root = ""
+
+[tool.uv.sources]
+oic-toolkit = { path = "../../Toolboxes/oic-toolkit", editable = true }

@@ -1,12 +1,89 @@
+import re
 from pathlib import Path
 
 import numpy as np
 import skimage
+from matplotlib import pyplot as plt
 from natsort import natsorted
 from tqdm import tqdm
 
 
+def correct_all(data_dir, output_dir):
+
+    # Read all files in
+    if isinstance(data_dir, str):
+        data_dir = Path(data_dir)
+    elif isinstance(data_dir, Path):
+        pass
+    else:
+        raise TypeError(
+            f"Expected data directory to be a str or Path. Instead it has type {type(data_dir)}."
+        )
+
+    if not data_dir.exists():
+        raise FileNotFoundError(f"The directory {data_dir} does not exist.")
+
+    # Read all files in
+    if isinstance(output_dir, str):
+        output_dir = Path(output_dir)
+    elif isinstance(output_dir, Path):
+        pass
+    else:
+        raise TypeError(
+            f"Expected output directory to be a str or Path. Instead it has type {type(output_dir)}."
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    image_list = list(data_dir.glob("*.TIF"))
+
+    pattern = re.compile(r"(?P<base>.*)_s(?P<tile>\d+)_w(?P<channel>\d+)\.TIF")
+
+    base = set()
+    tiles = set()
+    channels = set()
+
+    for f in image_list:
+        match = pattern.search(f.name)
+
+        if match:
+            base.add(match.group("base"))
+            tiles.add(int(match.group("tile")))
+            channels.add(int(match.group("channel")))
+
+    tiles = sorted(tiles)
+    channels = sorted(channels)
+
+    print(f"Number of tiles: {len(tiles)}.")
+    print(f"Number of channels: {len(channels)}.")
+
+    if len(base) > 1:
+        raise ValueError(f"Expected only 1 base filename but found {len(base)}.")
+
+    base = list(base)
+
+    # Obtain the shading for each channel
+    for iC in range(len(channels)):
+        correct_shading(
+            data_dir,
+            output_dir / (base[0] + f"_channel{iC + 1}"),
+            file_pattern=f"*_w{iC + 1}.TIF",
+        )
+
+    # Correct each channel
+
+    # Get the stitching coordinates using the DAPI channel
+
+    # Stitch them all together
+
+    # Register the stitched images to each other
+
+    pass
+
+
 def calculate_shading(data_dir, file_pattern="*_w2.TIF", return_image_stack=True):
+
+    print(file_pattern)
 
     if isinstance(data_dir, str):
         data_dir = Path(data_dir)
@@ -24,12 +101,10 @@ def calculate_shading(data_dir, file_pattern="*_w2.TIF", return_image_stack=True
     # get sorted before "1" and "2").
     image_list = list(data_dir.glob(file_pattern))
 
-    # has_files = next(image_list, None) is not None
-
-    # if not has_files:
-    #     raise FileNotFoundError(
-    #         f"No files matching the pattern '{file_pattern}' was found in {data_dir}."
-    #     )
+    if len(image_list) == 0:
+        raise FileNotFoundError(
+            f"No files matching the pattern '{file_pattern}' was found in {data_dir}."
+        )
 
     image_list = natsorted(image_list)
 
@@ -37,7 +112,10 @@ def calculate_shading(data_dir, file_pattern="*_w2.TIF", return_image_stack=True
     image = skimage.io.imread(image_list[0])
 
     # Create a matrix to hold the images
-    image_data = np.zeros((image.shape[0], image.shape[1], len(image_list)))
+    image_data = np.zeros(
+        (image.shape[0], image.shape[1], len(image_list)),
+        dtype=image.dtype,
+    )
 
     # Load in the images
     for idx, file in enumerate(tqdm(image_list, desc="Reading images")):
@@ -49,6 +127,9 @@ def calculate_shading(data_dir, file_pattern="*_w2.TIF", return_image_stack=True
     # Blur the resulting data
     shading = skimage.filters.gaussian(shading, sigma=50)
 
+    plt.imshow(shading)
+    plt.show()
+
     if return_image_stack:
         return shading, image_data
 
@@ -56,11 +137,12 @@ def calculate_shading(data_dir, file_pattern="*_w2.TIF", return_image_stack=True
         return shading
 
 
-def correct_shading(data_dir, output_dir, **kwargs):
+def correct_shading(data_dir, output_dir, shading=None, **kwargs):
     # This function corrects the shading and output the images, named correctly to be
     # stitched in Fiji.
 
-    shading, image_data = calculate_shading(data_dir, **kwargs)
+    if shading is None:
+        shading, image_data = calculate_shading(data_dir, **kwargs)
 
     # Save the images
     if isinstance(output_dir, str):
@@ -69,13 +151,38 @@ def correct_shading(data_dir, output_dir, **kwargs):
     if not output_dir.exists():
         output_dir.mkdir(parents=True)
 
+    # Get the original data type
+    original_dtype = image_data.dtype
+    # print(original_dtype)
+
+    max_val = (np.iinfo(original_dtype)).max
+
     # Correct the images
     image_data = image_data.astype(np.float32)
 
+    shading_mean = np.mean(shading)
+
     for ii in tqdm(range(image_data.shape[-1]), desc="Saving corrected images"):
         curr_image = image_data[:, :, ii]
-        curr_image /= shading
-        skimage.io.imsave(output_dir / f"img_{(ii + 1):02}.tif", curr_image)
+
+        # plt.imshow(curr_image)
+        # plt.show()
+        # plt.close()
+
+        curr_image = (curr_image / shading) * shading_mean
+
+        # plt.imshow(curr_image)
+        # plt.show()
+        # plt.close()
+
+        # Return image back to uint16
+        curr_image = np.clip(curr_image, 0, max_val)
+
+        skimage.io.imsave(
+            output_dir / f"img_{(ii + 1):02}.tif",
+            curr_image.astype(original_dtype),
+            check_contrast=False,
+        )
 
     # Save the shading information
     skimage.io.imsave(output_dir / "shading.tiff", shading)
