@@ -3,29 +3,28 @@
 This project is to build an image analysis pipeline to analyze images of granulovacuolar
 degeneration bodies (GVB), acquired using serial staining and imaging.
 
-
-> [!IMPORTANT]
-> **Template Setup Checklist**
-> Before committing this repository, please complete the following steps:
-> 
-> 3. **Configuration Metadata:** Update the project metadata in `pyproject.toml`. Specifically, change the `name = "henderson-lab-brain-gvb"` line to your new project name, and update the `description` line.
-
-> 5. **Project Tracking:** Update the `Changelog` section at the bottom with the correct Jira ticket number for this project.
-> 
-> *Once these steps are complete, delete this notice block entirely!*
-
-This is the template repository for image analysis scripts. 
-
-* Analysis scripts should be placed in the ``analysis`` folder and named using the format ``YYYYMMDD_description`` (e.g., ``20260630_batch01.py``)
-* Shared scripts should be places in the ``shared`` folder
-* Shared scripts can be imported into analysis scripts using:
-  ```python
-  from shared import core_logic
-
-  core_logic.main()
-  ```
-
 ## Usage
+
+To process the images, this project utilizes several different tools:
+
+* Fiji/ImageJ with the **Image Stitching** package (Version 3.1.9)
+* Python (Version 3.14)
+
+### Image acquisition
+
+Sequentially stained samples must typically be registered (aligned) to account for
+translational shifts. To do this, each image round must have a DAPI channel that can be
+used for registration.
+
+The original dataset was acquired using an ImageXpress Confocal HT.ai (Molecular
+Devices). For this project, the individual image for each tile is required - do not tile
+the final image.
+
+It is also expected that the filename for each tile has the following pattern:
+
+``<filename>_s<tile>_w<channel>.TIF``
+
+For example: ``AM1c-s11-r002_A01_s1_w2.TIF``
 
 ### Setup and installation
 
@@ -50,7 +49,15 @@ This project uses [uv](https://docs.astral.sh/uv/) to manage virtual environment
    uv sync
    ```
 
-4. Run the analysis
+4. Run the illumination correction (Needs to be run on every image channel separately -
+   see section below):
+   ```bash
+   uv run python -m shared.gvb_analyzer -i "..\data\Dataset 1\raw\AM1c-s11-r002_Plate_4555\TimePoint_1" -o "../processed/20260808 Dev" -p "*_w1.TIF"
+   ```
+
+5. Stitch the image in Fiji (see below)
+
+6. Run the analysis
    ```bash
    uv run analysis/analysis_script.py
    ```
@@ -82,13 +89,107 @@ This project uses [uv](https://docs.astral.sh/uv/) to manage virtual environment
    python -m pip install -e .
    ```
 
-5. Run the analysis script
+5. Run the illumination correction (Needs to be run on every image channel separately -
+   see below):
+
+   ```bash
+   python -m shared.gvb_analyzer -i "..\data\Dataset 1\raw\AM1c-s11-r002_Plate_4555\TimePoint_1" -o "../processed/20260808 Dev" -p "*_w1.TIF"
+   ```
+
+6. Stitch the images using Fiji (see below)
+
+7. Run the analysis script
    ```bash
    python -m analysis.analysis_script
 
    # or
    python analysis/analysis_script.py
    ```
+
+### Shading correction
+
+The original dataset exhibited strong vignetting along
+the edge of each tile. The pipeline attempts to correct for this by stacking the tiles to
+estimate the shading, then applying a correction to each tile. The shading appears to be
+different for each channel.
+
+Shading correction can be applied using the CLI, for example:
+
+```bash
+# Using uv (see below)
+uv run python -m shared.gvb_analyzer -i "..\data\Dataset 1\raw\AM1c-s11-r002_Plate_4555\TimePoint_1" -o "../processed/20260808 Dev" -p "*_w1.TIF"
+
+# Alternatively if using pip/venv:
+python -m shared.gvb_analyzer -i "..\data\Dataset 1\raw\AM1c-s11-r002_Plate_4555\TimePoint_1" -o "../processed/20260808 Dev" -p "*_w1.TIF"
+```
+
+For help:
+
+```bash
+python -m shared.gvb_analyzer --help
+```
+
+### Stitching the large image
+
+To obtain the final stitched large image, we stitch on the DAPI image. The resulting
+stitching coordinates must be saved, then applied to the remaining channels of the
+dataset.
+
+For the DAPI channel:
+
+1. In Fiji, open the Stitching plugin: **Plugins** > **Stitching** > **Grid/Collection
+   stitching**
+
+2. In the dialog box, set the following:
+   - Type: **Grid: row-by-row**
+   - Order: **Right & Down**
+   - Click **Ok**
+
+3. In the next dialog box, set the following:
+  - Grid size x: **7** (See note below)
+  - Grid size y: **9**
+  - Tile overlap: **20%**
+  - Directory: Click on **Browse** to select the directory with the shading corrected
+    DAPI tiles
+  - File names for files: **img_{ii}.tif**
+  - Check **Compute overlap**
+  - Image output: **Write to disk**
+  - Leave all other settings as default/unchecked
+  - Click **OK**
+
+4. In the next dialog box, click **Browse** and select the directory to save the
+   stitched large image. Click **OK** to start the stitching.
+
+5. Open the stitched file and check the final result looks good without significant cell
+   shearing.
+
+6. Copy the ``TileConfiguration.txt`` and ``TileConfiguration.registered.txt`` to the
+   other folders.
+
+Note: The number of X and Y tiles can be obtained from the HTD-file supplied with the
+images. HTD-file can be opened using a text editor. Search for XSites and YSites.
+
+For the remaining channels:
+
+1. In Fiji, open the Stitching plugin: **Plugins** > **Stitching** > **Grid/Collection
+   stitching**
+
+2. In the dialog box, set the following:
+   - Type: **Positions from file**
+   - Order: **Defined by TileConfiguration**
+   - Click **Ok**
+
+3. In the next dialog box, set the following:
+  - Directory: Click on **Browse** to select the directory with the shading corrected tiles
+  - Layout file: **TileConfiguration.txt**
+  - Check **Compute overlap**
+  - Image output: **Write to disk**
+  - Leave all other settings as default/unchecked
+  - Click **OK**. 
+
+4. In the next dialog box, click **Browse** and select the directory to save the
+   stitched large image. Click **OK** to start the stitching.
+
 
 ## Issues
 
