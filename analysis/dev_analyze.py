@@ -1,6 +1,4 @@
 # Import an ROI and look for spots
-
-
 import skimage
 from matplotlib import pyplot as plt
 from oic_toolkit import segment
@@ -16,13 +14,12 @@ img1_crop = img1[ROI[1] : ROI[3], ROI[0] : ROI[2]]
 # plt.imshow(img1_crop)
 # plt.show()
 
-diff_img = segment.difference_of_gaussians(img1_crop, d_min=3, d_max=15)
+diff_img = segment.difference_of_gaussians(img1, d_min=3, d_max=15)
 
 mask_spot = diff_img > 0.2
 
 # plt.imshow(mask_spot)
 # plt.show()
-
 
 img2 = skimage.io.imread(
     "../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted/AM1c-s11-r002_A01_channel3_channel3.tif"
@@ -30,7 +27,7 @@ img2 = skimage.io.imread(
 
 img2_crop = img2[ROI[1] : ROI[3], ROI[0] : ROI[2]]
 
-diff_img2 = segment.difference_of_gaussians(img2_crop, d_min=3, d_max=15)
+diff_img2 = segment.difference_of_gaussians(img2, d_min=3, d_max=15)
 
 mask_spot2 = diff_img2 > 0.2
 
@@ -112,3 +109,4 @@ ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize="small")
 
 plt.tight_layout()
 plt.show()
+plt.savefig("spot_clusters.png")
