@@ -12,7 +12,10 @@ dependencies = [
     "opencv-python>=5.0.0.93",
     "scikit-image>=0.26.0",
     "scikit-learn>=1.9.0",
+    "segment-anything",
     "tifffile>=2026.6.1",
+    "torch>=2.13.0",
+    "torchvision>=0.28.0",
     "tqdm>=4.68.4",
 ]
 
@@ -26,3 +29,9 @@ module-root = ""
 
 [tool.uv.sources]
 oic-toolkit = { path = "../../Toolboxes/oic-toolkit", editable = true }
+segment-anything = { git = "https://github.com/facebookresearch/segment-anything.git" }
+
+[tool.uv]
+override-dependencies = [
+    "numpy==2.4.4"
+]

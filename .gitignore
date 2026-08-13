@@ -3,6 +3,9 @@
 *.tif
 *.tiff
 
+# ML models
+sam_model/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
