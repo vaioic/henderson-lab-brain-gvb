@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import skimage
+import tifffile as tiff
 from natsort import natsorted
 from tqdm import tqdm
 
@@ -220,6 +221,80 @@ def correct_shading(data_dir, output_dir, shading=None, **kwargs):
 
     # Save the shading information
     skimage.io.imsave(output_dir / "shading.tiff", shading)
+
+
+def merge_tiffs(image_dir_list, output_dir):
+
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    image_list = []
+
+    for d in image_dir_list:
+        image_list.extend(Path(d).glob("*.tif"))
+
+    images = [skimage.io.imread(f) for f in image_list]
+
+    try:
+        stack = np.stack(images, axis=0)
+    except Exception:
+        print("Images are not the same sizes.")
+        for f, img in zip(image_list, images):
+            print(f"{f}: shape = {img.shape}, dtype = {img.dtype}")
+        exit()
+
+    # num_levels = 3
+    # pyramid = [stack]
+
+    # for level in range(1, num_levels):
+    #     prev_h, prev_w, num_c = pyramid[-1].shape
+    #     new_h, new_w = prev_h // 2, prev_w // 2
+
+    #     # Resize each channel independently to preserve exact spatial scaling and prevent channel-axis distortion
+    #     scaled_channels = [
+    #         skimage.transform.resize(
+    #             pyramid[-1][..., c],
+    #             (new_h, new_w),
+    #             anti_aliasing=True,
+    #             preserve_range=True,
+    #             order=1,
+    #         ).astype(stack.dtype)
+    #         for c in range(num_c)
+    #     ]
+    #     # Re-stack back to YXC format
+    #     scaled_img = np.stack(scaled_channels, axis=-1)
+    #     pyramid.append(scaled_img)
+
+    channel_names = [f"Channel {i + 1}" for i in range(stack.shape[0])]
+
+    # print(channel_names)
+    # exit()
+
+    tile_size = 256
+    subresolutions = 2
+
+    with tiff.TiffWriter(output_dir / "combined.ome.tif", bigtiff=True) as tif:
+        options = {
+            "photometric": "rgb",
+            "tile": (tile_size, tile_size),
+            "compression": "lzw",
+            "resolutionunit": "CENTIMETER",
+        }
+
+        tif.write(
+            stack,
+            subifds=subresolutions,
+            metadata={"axes": "CYX", "Channel": {"Name": channel_names}},
+            **options,
+        )
+
+        for level in range(subresolutions):
+            mag = 2 ** (level + 1)
+            tif.write(
+                stack[:, ::mag, ::mag],
+                subfiletype=1,  # FILETYPE.REDUCEDIMAGE
+                **options,
+            )
 
 
 def main():
