@@ -2,8 +2,18 @@ from shared import gvb_analyzer
 
 gvb_analyzer.merge_tiffs(
     [
-        r"../processed/shading_corrected/AW GVB AM1c-s11 010426_Plate_4536_shifted2",
-        r"../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted",
+        r"../processed/20260815_reregistered_moving_images/warped_dataset_output_4555",
+        r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered",
     ],
-    r"../processed/20260814_mergedImages",
+    r"../processed/20260815_mergedImages",
+    channel_names=[
+        "LAMP1 (4555)",
+        "DAPI (4555)",
+        "pMARK (4555)",
+        "CK1delta (4555)",
+        "pSyn (4536)",
+        "DAPI (4536)",
+        "pTau (4536)",
+        "CHMP2B (4536)",
+    ],
 )

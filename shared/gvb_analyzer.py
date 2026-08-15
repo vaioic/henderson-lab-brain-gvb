@@ -223,7 +223,7 @@ def correct_shading(data_dir, output_dir, shading=None, **kwargs):
     skimage.io.imsave(output_dir / "shading.tiff", shading)
 
 
-def merge_tiffs(image_dir_list, output_dir):
+def merge_tiffs(image_dir_list, output_dir, channel_names=None):
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -265,7 +265,8 @@ def merge_tiffs(image_dir_list, output_dir):
     #     scaled_img = np.stack(scaled_channels, axis=-1)
     #     pyramid.append(scaled_img)
 
-    channel_names = [f"Channel {i + 1}" for i in range(stack.shape[0])]
+    if channel_names is None:
+        channel_names = [f"Channel {i + 1}" for i in range(stack.shape[0])]
 
     # print(channel_names)
     # exit()
@@ -275,7 +276,7 @@ def merge_tiffs(image_dir_list, output_dir):
 
     with tiff.TiffWriter(output_dir / "combined.ome.tif", bigtiff=True) as tif:
         options = {
-            "photometric": "rgb",
+            "photometric": "minisblack",
             "tile": (tile_size, tile_size),
             "compression": "lzw",
             "resolutionunit": "CENTIMETER",

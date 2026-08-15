@@ -7,21 +7,21 @@ from matplotlib.collections import PatchCollection
 from oic_toolkit import segment
 
 image_list = [
-    r"../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted/AM1c-s11-r002_A01_channel1_channel1.tif",
-    r"../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted/AM1c-s11-r002_A01_channel3_channel3.tif",
-    r"../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted/AM1c-s11-r002_A01_channel4_channel4.tif",
-    r"../processed/shading_corrected/AW GVB AM1c-s11 010426_Plate_4536_shifted2/AW GVB AM1c-s11 010426_A01_channel1_channel1.tif",
-    r"../processed/shading_corrected/AW GVB AM1c-s11 010426_Plate_4536_shifted2/AW GVB AM1c-s11 010426_A01_channel3_channel3.tif",
-    r"../processed/shading_corrected/AW GVB AM1c-s11 010426_Plate_4536_shifted2/AW GVB AM1c-s11 010426_A01_channel4_channel4.tif",
+    r"../processed/20260815_reregistered_moving_images/warped_dataset_output_4555/warped_AM1c-s11-r002_A01_channel0.tif",
+    r"../processed/20260815_reregistered_moving_images/warped_dataset_output_4555/warped_AM1c-s11-r002_A01_channel2.tif",
+    r"../processed/20260815_reregistered_moving_images/warped_dataset_output_4555/warped_AM1c-s11-r002_A01_channel3.tif",
+    r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered/AW GVB AM1c-s11 010426_A01_channel0.tif",
+    r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered/AW GVB AM1c-s11 010426_A01_channel3.tif",
+    r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered/AW GVB AM1c-s11 010426_A01_channel4.tif",
 ]
 
 marker_name = [
-    "plate_4555_ch1",
-    "plate_4555_ch3",
-    "plate_4555_ch4",
-    "plate_4536_ch1",
-    "plate_4536_ch3",
-    "plate_4536_ch4",
+    "LAMP1",
+    "pMARK",
+    "CK1delta",
+    "pSyn",
+    "pTau",
+    "CHMP2B",
 ]
 
 all_props = []
