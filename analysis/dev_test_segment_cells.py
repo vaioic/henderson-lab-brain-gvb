@@ -1,36 +1,60 @@
+from pathlib import Path
+
 import numpy as np
 import skimage
 from matplotlib import pyplot as plt
 from segment_anything import SamPredictor, sam_model_registry
+from skimage.draw import rectangle_perimeter
 
 crop_image = True
 ROI = [6310, 628, 9664, 2795]
+
+# Files
+lamp1_file = Path(
+    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel0.tif"
+)
+
+psyn_file = Path(
+    r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered/AW GVB AM1c-s11 010426_A01_channel0.tif"
+)
+
 
 # DAPI_image = skimage.io.imread(
 #     r"../processed/shading_corrected/AM1c-s11-r002_Plate_4555_shifted/AM1c-s11-r002_A01_channel2_channel2.tif"
 # )
 
-# Use the LAMP1 channel to try and segment cells?
-cellbody_image = skimage.io.imread(
-    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel0.tif"
-)
+# Load images
+cellbody_image = skimage.io.imread(lamp1_file)
 
 if crop_image:
     cellbody_image = cellbody_image[ROI[1] : ROI[3], ROI[0] : ROI[2]]
 
-# cellbody_image = skimage.filters.unsharp_mask(cellbody_image)
+alpha_syn_image = skimage.io.imread(psyn_file)
 
-# # Pre-process the image
-# p_low, p_high = np.percentile(cellbody_image, (10, 99))
-# cellbody_image = skimage.exposure.rescale_intensity(
-#     cellbody_image, in_range=(p_low, p_high), out_range=(0.0, 1.0)
-# )
+if crop_image:
+    alpha_syn_image = alpha_syn_image[ROI[1] : ROI[3], ROI[0] : ROI[2]]
 
+# Try plotting both images to ensure that they are registered correctly
+h, w = alpha_syn_image.shape[:2]
 
-# plt.imshow(cellbody_image)
+rgb_image = np.zeros((h, w, 3), dtype=np.uint8)
+cellbody_image_uint8 = skimage.exposure.rescale_intensity(
+    cellbody_image, out_range=(0, 255)
+).astype(np.uint8)
+alpha_syn_image_uint8 = skimage.exposure.rescale_intensity(
+    alpha_syn_image, out_range=(0, 255)
+).astype(np.uint8)
+
+rgb_image[..., 0] = cellbody_image_uint8
+rgb_image[..., 1] = alpha_syn_image_uint8
+rgb_image[..., 2] = cellbody_image_uint8
+
+# plt.imshow(rgb_image)
 # plt.show()
 
 # exit()
+
+# Try to find the pSyn positive cells
 
 rough_cell_mask = cellbody_image > 400  # 0.4 if normalizing
 rough_cell_mask = skimage.morphology.opening(
@@ -39,27 +63,15 @@ rough_cell_mask = skimage.morphology.opening(
 
 rough_cell_mask = skimage.morphology.remove_small_holes(rough_cell_mask, max_size=500)
 
-# import oic_toolkit
-
-# ov = oic_toolkit.display.overlay_mask(cellbody_image, rough_cell_mask)
-# plt.imshow(ov)
-# plt.show()
-# plt.close()
-# exit()
-
-
-alpha_syn_image = skimage.io.imread(
-    r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered/AW GVB AM1c-s11 010426_A01_channel0.tif"
-)
-
 # Find regions that are positive
-alpha_syn_mask = alpha_syn_image > 600
+alpha_syn_mask = alpha_syn_image > 550
 
 alpha_syn_mask = skimage.morphology.remove_small_objects(alpha_syn_mask, max_size=100)
-
 alpha_syn_mask = alpha_syn_mask & rough_cell_mask
 
-# ov = oic_toolkit.display.overlay_mask(alpha_syn_image, alpha_syn_mask)
+# import oic_toolkit
+
+# ov = oic_toolkit.display.overlay_mask(rgb_image, alpha_syn_mask)
 # plt.imshow(ov)
 # plt.show()
 # exit()
@@ -84,29 +96,42 @@ for prop in props:
         )
         valid_boxes.append(sam_box)
 
+# # Draw boxes to check
+# output_image = rgb_image.copy()
+# box_color = (255, 255, 255)
+# for box in valid_boxes:
+#     xmin, ymin, xmax, ymax = box
+
+#     rr, cc = rectangle_perimeter(
+#         start=(ymin, xmin),
+#         end=(ymax - 1, xmax - 1),
+#         shape=output_image.shape[:2],
+#         clip=True,
+#     )
+#     output_image[rr, cc] = box_color
+
+
+# plt.imshow(output_image)
+# plt.show()
+# exit()
+
+# Set up the Segment Anything model
 
 checkpoint_path = "sam_model/sam_vit_b_01ec64.pth"
 model_type = "vit_b"
+
 sam = sam_model_registry[model_type](checkpoint=checkpoint_path)
 device = "cpu"
 sam.to(device=device)
+
 predictor = SamPredictor(sam)
 
-# Have to convert to uint8 for PIL
-p_low, p_high = np.percentile(cellbody_image, (2, 98))
-cellbody_norm = skimage.exposure.rescale_intensity(
-    cellbody_image.copy(), in_range=(p_low, p_high), out_range=(0, 255)
-).astype(np.uint8)
+# Cell body only
+img_uint8 = np.stack(
+    (cellbody_image_uint8, cellbody_image_uint8, cellbody_image_uint8), axis=-1
+)
 
-# img_norm = img_rgb.astype(np.float32) / img_rgb.max()
-img_8bit = np.stack([cellbody_norm, cellbody_norm, cellbody_norm], axis=-1)
-
-# plt.imshow(img_8bit)
-# plt.show()
-# plt.close()
-
-
-predictor.set_image(img_8bit)
+predictor.set_image(img_uint8)
 
 predicted_masks = []
 
@@ -119,21 +144,10 @@ def get_random_color():
     return np.random.randint(0, 256, size=3, dtype=np.uint8)
 
 
-tmp_alpha_syn = skimage.exposure.rescale_intensity(
-    alpha_syn_image, out_range=(0.0, 1.0)
-)
-tmp_alpha_syn = (tmp_alpha_syn * 255).astype(np.uint8)
-
-output_image = img_8bit.copy()
-output_image[..., 1] = tmp_alpha_syn
-# output_image = np.stack((output_image, output_image, output_image), axis=-1)
-# output_image
-
-box_color = np.array([255, 0, 0], dtype=np.uint8)
-mask_color = np.array([0, 255, 255], dtype=np.uint8)
+box_color = np.array([255, 255, 255], dtype=np.uint8)
 alpha = 0.4  # Transparency factor (40% color blend)
 
-from skimage.draw import rectangle_perimeter
+output_image = rgb_image.copy()
 
 for box in valid_boxes:
     # Generate mask for each positive region bounding box
@@ -146,6 +160,10 @@ for box in valid_boxes:
     mask_areas = [np.sum(m) for m in masks]
     smallest_idx = np.argmin(mask_areas)
     smallest_mask = masks[smallest_idx]
+
+    # plt.imshow(smallest_mask)
+    # plt.show()
+    # exit()
 
     # masks is a boolean array of shape (1, H, W)
     mask = smallest_mask

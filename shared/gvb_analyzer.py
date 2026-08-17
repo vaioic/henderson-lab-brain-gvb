@@ -9,6 +9,35 @@ from natsort import natsorted
 from tqdm import tqdm
 
 
+# Define classes
+class ImageManager:
+    """
+    Define ImageManager class.
+
+    The ImageManager class is used to manage the images in this project.
+
+    Parameters
+    ----------
+    image_dict : dict
+        Keys are the channel names and values are the file paths to the images.
+
+    Examples
+    --------
+    >>> data = {"LAMP1" : "../data/lamp1.tif", "DAPI" : "../data/dapi.tif"}
+    >>> manager = ImageManager(data)
+    >>> img = manager.get_image("LAMP1")
+    """
+
+    def __init__(self, image_dict):
+        self.images = image_dict
+
+    def get_image(self, label):
+        if label in self.images:
+            return skimage.io.imread(self.images[label])
+        else:
+            raise KeyError(f"Channel '{label}' not found in image list.")
+
+
 def correct_all(data_dir, output_dir):
 
     # Read all files in
