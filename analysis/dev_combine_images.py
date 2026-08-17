@@ -2,7 +2,7 @@ from shared import gvb_analyzer
 
 gvb_analyzer.merge_tiffs(
     [
-        r"../processed/20260815_reregistered_moving_images/warped_dataset_output_4555",
+        r"../test/warped_dataset_output_4555_2",
         r"../processed/20260814_registered_images/AW GVB AM1c-s11 010426_Plate_4536_registered",
     ],
     r"../processed/20260815_mergedImages",

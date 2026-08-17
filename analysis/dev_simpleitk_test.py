@@ -23,7 +23,7 @@ moving_image = sitk.ReadImage(
 # 'transformDomainMeshSize' defines the grid layout.
 # For example, [8, 8] splits the image into an 8x8 grid of local patches.
 # Increase these numbers (e.g., [12, 12]) for smaller subimages / more localized warping.
-grid_size = [32, 32]
+grid_size = [64, 64]
 bspline_transform = sitk.BSplineTransformInitializer(
     fixed_image, transformDomainMeshSize=grid_size
 )
