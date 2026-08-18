@@ -96,7 +96,7 @@ for cell_id in unique_mask_ids:
     blended_pixels = (1 - alpha) * output_image[mask] + alpha * mask_color
     output_image[mask] = blended_pixels.astype(np.uint8)
 
-skimage.io.imsave(output_dir / "overlay_cells.png", masks)
+skimage.io.imsave(output_dir / "overlay_cells.png", output_image)
 exit()
 
 plt.figure(figsize=(10, 10))
