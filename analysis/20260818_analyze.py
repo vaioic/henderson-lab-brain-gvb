@@ -25,7 +25,7 @@ dapi_image = skimage.io.imread(
 image_list = [
     # r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel0.tif",
     r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel2.tif",
-    # r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel3.tif",
+    r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel3.tif",
     # r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel0.tif",
     r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel2.tif",
     r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel3.tif",
@@ -34,7 +34,7 @@ image_list = [
 marker_name = [
     # "LAMP1",
     "pMARK",
-    # "CK1delta",
+    "CK1delta",
     # "pSyn",
     "pTau",
     "CHMP2B",
