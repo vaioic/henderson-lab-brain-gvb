@@ -8,6 +8,8 @@ import skimage
 from matplotlib import pyplot as plt
 from scipy.spatial import cKDTree
 
+gvb_size = 6  # (Approx. 1.04 micron)
+
 output_dir = Path(r"../processed/2026-08-19 Dev")
 output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -21,6 +23,35 @@ psyn_image = skimage.io.imread(
 dapi_image = skimage.io.imread(
     r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel1.tif"
 )
+
+
+def segment_cells(dapi_image, cell_expansion_px=29):
+
+    # Background subtraction by opening reconstruction
+    footprint = skimage.morphology.disk(50)
+    seed = skimage.morphology.erosion(dapi_image, footprint)
+
+    background = skimage.morphology.reconstruction(seed, dapi_image, method="dilation")
+
+    subtracted = dapi_image - background
+
+    dapi_image_filt = skimage.filters.gaussian(subtracted, 8)
+
+    plt.imshow(dapi_image_filt)
+    plt.show()
+
+    nucl_thresh = skimage.filters.threshold_otsu(subtracted)
+
+    nuclear_mask = subtracted > 20  # (0.5 * nucl_thresh)
+
+    overlay = oic_toolkit.display.overlay_mask(subtracted, nuclear_mask)
+
+    plt.imshow(overlay)
+    plt.show()
+
+
+segment_cells(dapi_image)
+exit()
 
 image_list = [
     # r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel0.tif",
@@ -128,7 +159,6 @@ coords = df_all_spots[["centroid-0", "centroid-1"]].to_numpy()
 
 bandwidth = estimate_bandwidth(coords, quantile=0.2, n_samples=500)
 
-gvb_size = 20.0
 
 ms = MeanShift(bandwidth=gvb_size, bin_seeding=True)
 ms.fit(coords)
