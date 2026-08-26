@@ -5,12 +5,12 @@ import numpy as np
 import oic_toolkit
 import pandas as pd
 import skimage
-from matplotlib import pyplot as plt
+import tifffile as tiff
 from scipy.spatial import cKDTree
 
 gvb_size = 6  # (Approx. 1.04 micron)
 
-output_dir = Path(r"../processed/2026-08-19 Dev")
+output_dir = Path(r"../processed/2026-08-26 Dev")
 output_dir.mkdir(exist_ok=True, parents=True)
 
 cell_mask = skimage.io.imread("../processed/2026-08-17 Dev/cell_masks.tif")
@@ -24,34 +24,15 @@ dapi_image = skimage.io.imread(
     r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel1.tif"
 )
 
+nuclear_mask = skimage.io.imread(r"../processed/2026-08-26 Dev/cell_masks.tif")
 
-def segment_cells(dapi_image, cell_expansion_px=29):
+# Expand the nuclear mask to get the cell masks
+cell_mask = skimage.segmentation.expand_labels(nuclear_mask, distance=12.5)
 
-    # Background subtraction by opening reconstruction
-    footprint = skimage.morphology.disk(50)
-    seed = skimage.morphology.erosion(dapi_image, footprint)
+# overlay = oic_toolkit.display.merge_images(dapi_image, cell_mask)
+# plt.imshow(overlay)
+# plt.show()
 
-    background = skimage.morphology.reconstruction(seed, dapi_image, method="dilation")
-
-    subtracted = dapi_image - background
-
-    dapi_image_filt = skimage.filters.gaussian(subtracted, 8)
-
-    plt.imshow(dapi_image_filt)
-    plt.show()
-
-    nucl_thresh = skimage.filters.threshold_otsu(subtracted)
-
-    nuclear_mask = subtracted > 20  # (0.5 * nucl_thresh)
-
-    overlay = oic_toolkit.display.overlay_mask(subtracted, nuclear_mask)
-
-    plt.imshow(overlay)
-    plt.show()
-
-
-segment_cells(dapi_image)
-exit()
 
 image_list = [
     # r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel0.tif",
@@ -63,12 +44,12 @@ image_list = [
 ]
 
 marker_name = [
-    # "LAMP1",
-    "pMARK",
-    "CK1delta",
     # "pSyn",
     "pTau",
     "CHMP2B",
+    # "LAMP1",
+    "pMARK",
+    "CK1delta",
 ]
 
 
@@ -180,37 +161,39 @@ df_all_spots.to_csv(output_dir / "spot_data.csv")
 # nuclei?
 
 
-## Visualized the GVBs by plotting the identified cluster over the image?
-img1 = skimage.io.imread(image_list[0])
+# ## Visualized the GVBs by plotting the identified cluster over the image?
+# img1 = skimage.io.imread(image_list[0])
 
-p_low, p_high = np.percentile(img1, (45, 98))
-img1 = skimage.exposure.rescale_intensity(
-    img1, in_range=(p_low, p_high), out_range=(0.0, 0.6)
-)
+# p_low, p_high = np.percentile(img1, (45, 98))
+# img1 = skimage.exposure.rescale_intensity(
+#     img1, in_range=(p_low, p_high), out_range=(0.0, 0.6)
+# )
 
 
-img2 = skimage.io.imread(image_list[1])
-img2 = (img2 - np.min(img2)) / (np.max(img2) - np.min(img2))
+# img2 = skimage.io.imread(image_list[1])
+# img2 = (img2 - np.min(img2)) / (np.max(img2) - np.min(img2))
 
-p_low, p_high = np.percentile(img2, (45, 98))
-img2 = skimage.exposure.rescale_intensity(
-    img2, in_range=(p_low, p_high), out_range=(0.0, 0.6)
-)
+# p_low, p_high = np.percentile(img2, (45, 98))
+# img2 = skimage.exposure.rescale_intensity(
+#     img2, in_range=(p_low, p_high), out_range=(0.0, 0.6)
+# )
 
-magenta = np.array([1.0, 0.0, 1.0])  # Channel 1
-cyan = np.array([0.0, 1.0, 1.0])  # Channel 2
-yellow = np.array([1.0, 1.0, 0.0])  # Channel 3
+# magenta = np.array([1.0, 0.0, 1.0])  # Channel 1
+# cyan = np.array([0.0, 1.0, 1.0])  # Channel 2
+# yellow = np.array([1.0, 1.0, 0.0])  # Channel 3
 
-composite = (
-    img1[..., None] * magenta + img2[..., None] * cyan + img1[..., None] * yellow
-)
-composite = np.clip(composite, 0.0, 1.0)
+# composite = (
+#     img1[..., None] * magenta + img2[..., None] * cyan + img1[..., None] * yellow
+# )
+# composite = np.clip(composite, 0.0, 1.0)
 
-from skimage.draw import circle_perimeter
+# from skimage.draw import circle_perimeter
 
-# Create a copy of composite to modify directly
-image_with_circles = composite.copy()
-H, W, _ = image_with_circles.shape
+# Make a picture showing the GVB identification
+image_with_circles = np.zeros_like(dapi_image)
+
+# image_with_circles = composite.copy()
+H, W = image_with_circles.shape[:2]
 
 radius = int(gvb_size)
 white_color = np.array([1.0, 1.0, 0.0])  # RGB white
@@ -220,7 +203,7 @@ for cy, cx in cluster_centers:
     r_center, c_center = int(round(cy)), int(round(cx))
 
     # Get perimeter coordinates, bounded by image dimensions
-    rr, cc = circle_perimeter(r_center, c_center, radius, shape=(H, W))
+    rr, cc = skimage.draw.circle_perimeter(r_center, c_center, radius, shape=(H, W))
 
     # Calculate angles for each perimeter pixel to create a dotted effect
     angles = np.arctan2(rr - r_center, cc - c_center)
@@ -228,11 +211,98 @@ for cy, cx in cluster_centers:
     dotted_mask = np.sin(12 * angles) > 0
 
     # Draw white pixels onto the array
-    image_with_circles[rr[dotted_mask], cc[dotted_mask]] = white_color
+    image_with_circles[rr[dotted_mask], cc[dotted_mask]] = 1.0
 
-skimage.io.imsave(
-    output_dir / "identified_GVB.png", skimage.util.img_as_ubyte(image_with_circles)
-)
+image_with_circles = (image_with_circles * 65535).astype(np.uint16)
+
+# Draw all the spots
+# skimage.io.imsave(
+#     output_dir / "identified_GVB.png", skimage.util.img_as_ubyte(image_with_circles)
+# )
+
+spots_image = np.zeros_like(dapi_image)
+
+for x, y in coords:
+    rr, cc = skimage.draw.disk(
+        (
+            x,
+            y,
+        ),
+        3,
+        shape=spots_image.shape,
+    )
+    spots_image[rr, cc] = 1.0
+
+spots_image = (spots_image * 65535).astype(np.uint16)
+
+# # Draw all the images into a giant merged image
+image_list_2 = [
+    r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel0.tif",
+    r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel1.tif",
+    r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel2.tif",
+    r"..\processed\20260814_registered_images\AW GVB AM1c-s11 010426_Plate_4536_registered\AW GVB AM1c-s11 010426_A01_channel3.tif",
+    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel0.tif",
+    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel1.tif",
+    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel2.tif",
+    r"../test/warped_dataset_output_4555_2/warped_AM1c-s11-r002_A01_channel3.tif",
+]
+
+marker_name_2 = [
+    "pSyn",
+    "DAPI 2",
+    "pTau",
+    "CHMP2B",
+    "LAMP1",
+    "DAPI 1",
+    "pMARK",
+    "CK1delta",
+]
+
+
+images = [skimage.io.imread(f) for f in image_list_2]
+images.append(final_cell_mask)
+images.append(image_with_circles)
+images.append(spots_image)
+
+marker_name_2.append("Cell mask")
+marker_name_2.append("GVB")
+marker_name_2.append("Spots")
+
+stack = np.stack(images, axis=0)
+
+tile_size = 256
+subresolutions = 2
+
+with tiff.TiffWriter(output_dir / "combined_2.ome.tif", bigtiff=True) as tif:
+    options = {
+        "photometric": "minisblack",
+        "tile": (tile_size, tile_size),
+        "compression": "lzw",
+        # "resolution": (1e4 / 0.1726, 1e4 / 0.1726),
+        "resolutionunit": "CENTIMETER",
+    }
+
+    tif.write(
+        stack,
+        subifds=subresolutions,
+        metadata={
+            "axes": "CYX",
+            "Channel": {"Name": marker_name_2},
+            # "PhysicalSizeX": 0.1726,
+            # "PhysicalSizeXUnit": "µm",
+            # "PhysicalSizeY": 0.1726,
+            # "PhysicalSizeYUnit": "µm",
+        },
+        **options,
+    )
+
+    for level in range(subresolutions):
+        mag = 2 ** (level + 1)
+        tif.write(
+            stack[:, ::mag, ::mag],
+            subfiletype=1,  # FILETYPE.REDUCEDIMAGE
+            **options,
+        )
 
 
 exit()
@@ -313,12 +383,8 @@ skimage.io.imsave(output_dir / "positive_cell_overlay.png", positive_cell_overla
 
 exit()
 
-plt.imshow(psyn_image)
-plt.show()
+# plt.imshow(psyn_image)
+# plt.show()
 
 
-# Look for spots
-
-# Cluster to get GVBs
-
-# Export data to CSV
+# Merge all the images and spots together
