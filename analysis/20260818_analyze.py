@@ -102,11 +102,9 @@ for idx, file in enumerate(image_list):
     spot_props = skimage.measure.regionprops_table(
         curr_spot_label,
         final_cell_mask,
-        properties=(
-            "label",
-            "centroid",
-        ),
+        properties=("label", "centroid", "feret_diameter_max"),
     )
+    # TODO: In future, maybe replace feret diameter with a fitted profile
 
     # Determine cell ID for each spot
     cell_id = []
@@ -121,6 +119,7 @@ for idx, file in enumerate(image_list):
     # Convert to DataFrame and store channel name
     spot_df = pd.DataFrame(spot_props)
     spot_df["channel"] = marker_name[idx]
+    spot_df["feret_diameter_max"] = spot_df["feret_diameter_max"] * 0.1726
 
     all_spot_df.append(spot_df)
 
@@ -153,7 +152,7 @@ print("number of estimated clusters : %d" % n_clusters_)
 
 df_all_spots["cluster_id"] = labels
 
-df_all_spots.to_csv(output_dir / "spot_data.csv")
+df_all_spots.to_csv(output_dir / "spot_data.csv", index=False)
 
 ## -- Visualization --- ##
 
