@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 
 gvb_size = 6  # (Approx. 1.04 micron)
 
-output_dir = Path(r"../processed/2026-09-18 Dev")
+output_dir = Path(r"../processed/2026-09-25")
 output_dir.mkdir(exist_ok=True, parents=True)
 
 cell_mask = skimage.io.imread("../processed/2026-08-17 Dev/cell_masks.tif")
@@ -61,10 +61,14 @@ marker_name = [
 # Process positive cells
 # Measure the pSyn signal
 cell_props_psyn = skimage.measure.regionprops_table(
-    cell_mask, psyn_image, properties=("intensity_mean", "label", "coords", "bbox")
+    cell_mask,
+    psyn_image,
+    properties=("intensity_mean", "label", "coords", "bbox", "centroid"),
 )
 
 final_cell_mask = np.zeros_like(cell_mask)
+
+plot_cell_indices = []
 
 for idx in range(len(cell_props_psyn["label"])):
     # TODO: Load LAMP1? To determine if it's a real cell
@@ -73,6 +77,8 @@ for idx in range(len(cell_props_psyn["label"])):
         coords = cell_props_psyn["coords"][idx]
 
         final_cell_mask[coords[:, 0], coords[:, 1]] = idx
+
+        plot_cell_indices.append(idx)
 
 
 H0, W0 = cell_mask.shape[:2]
@@ -268,7 +274,34 @@ marker_name_2 = [
 
 
 images = [skimage.io.imread(f) for f in image_list_2]
-images.append(final_cell_mask)
+
+final_cell_mask_output = final_cell_mask.copy()
+final_cell_mask_output = final_cell_mask_output.astype(np.uint8)
+
+import cv2
+
+# Add text to the final_cell_mask
+for idx in plot_cell_indices:
+    cell_label = cell_props_psyn["label"][idx]
+
+    # Get centroid: skimage gives (row, col), OpenCV expects (x, y) -> (col, row)
+    centroid_y = cell_props_psyn["centroid-0"][idx]
+    centroid_x = cell_props_psyn["centroid-1"][idx]
+    text_origin = (int(centroid_x), int(centroid_y))
+
+    # Burn the text onto the image
+    cv2.putText(
+        final_cell_mask_output,
+        text=str(cell_label - 1),
+        org=text_origin,
+        fontFace=cv2.FONT_HERSHEY_SIMPLEX,
+        fontScale=0.5,
+        color=(0, 255, 0),  # Green (BGR)
+        thickness=1,
+        lineType=cv2.LINE_AA,
+    )
+
+images.append(final_cell_mask_output)
 images.append(image_with_circles)
 images.append(spots_image)
 
