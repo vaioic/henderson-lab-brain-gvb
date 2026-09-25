@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 
 gvb_size = 6  # (Approx. 1.04 micron)
 
-output_dir = Path(r"../processed/2026-08-26 Dev")
+output_dir = Path(r"../processed/2026-09-18 Dev")
 output_dir.mkdir(exist_ok=True, parents=True)
 
 cell_mask = skimage.io.imread("../processed/2026-08-17 Dev/cell_masks.tif")
@@ -106,6 +106,13 @@ for idx, file in enumerate(image_list):
     )
     # TODO: In future, maybe replace feret diameter with a fitted profile
 
+    # Measure intensity of the spots
+    spot_props_intensity = skimage.measure.regionprops_table(
+        curr_spot_label,
+        image,
+        properties=("intensity_mean",),
+    )
+
     # Determine cell ID for each spot
     cell_id = []
     for spot_idx in range(len(spot_props["label"])):
@@ -115,6 +122,8 @@ for idx, file in enumerate(image_list):
         cell_id.append(final_cell_mask[spot_y, spot_x])
 
     spot_props["cell_id"] = np.array(cell_id)
+
+    spot_props["intensity"] = spot_props_intensity["intensity_mean"]
 
     # Convert to DataFrame and store channel name
     spot_df = pd.DataFrame(spot_props)
